@@ -6,7 +6,6 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
 
 struct Asset {
@@ -26,9 +25,9 @@ contract BullieverseAssets is ERC1155, ERC1155Supply, Ownable {
     string public symbol;
 
     // A mapping of the number of Collection minted per collectionId per user
-    // assetMintedPerTokenId[msg.sender][collectionId] => number of minted Asset
+    // assetMintedPerCollectionId[msg.sender][collectionId] => number of minted Asset
     mapping(address => mapping(uint256 => uint256))
-        private assetMintedPerTokenId;
+        private assetMintedPerCollectionId;
 
     // A mapping from collectionId to its Asset
     mapping(uint256 => Asset) private collectionToAsset;
@@ -209,7 +208,7 @@ contract BullieverseAssets is ERC1155, ERC1155Supply, Ownable {
             "Cannot mint that many"
         );
 
-        uint256 totalMintedAssets = assetMintedPerTokenId[msg.sender][
+        uint256 totalMintedAssets = assetMintedPerCollectionId[msg.sender][
             collectionId
         ];
         require(
@@ -218,7 +217,7 @@ contract BullieverseAssets is ERC1155, ERC1155Supply, Ownable {
         );
         require(msg.value == pass.price * amount, "Not enough eth");
 
-        assetMintedPerTokenId[msg.sender][collectionId] =
+        assetMintedPerCollectionId[msg.sender][collectionId] =
             totalMintedAssets +
             amount;
         _mint(msg.sender, collectionId, amount, "");
@@ -234,7 +233,7 @@ contract BullieverseAssets is ERC1155, ERC1155Supply, Ownable {
         view
         returns (uint256)
     {
-        return assetMintedPerTokenId[user][collectionId];
+        return assetMintedPerCollectionId[user][collectionId];
     }
 
     /**
