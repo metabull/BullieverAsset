@@ -4,8 +4,6 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
-import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
 
 struct Asset {
@@ -16,7 +14,7 @@ struct Asset {
     uint256 openMintTimestamp; // unix timestamp in seconds
 }
 
-contract BullieverseAssets is ERC1155, ERC1155Supply, Ownable {
+contract BullieverseAssets is ERC1155Supply, Ownable {
     using Strings for uint256;
 
     // The name of the token ("Bullieverse Assets - Gaming")
@@ -69,7 +67,7 @@ contract BullieverseAssets is ERC1155, ERC1155Supply, Ownable {
     /**
      * @dev Retrieves the Asset Details for a given collectionId.
      */
-    function getcollectionToAsset(uint256 collectionId)
+    function getCollectionToAsset(uint256 collectionId)
         external
         view
         returns (Asset memory)
@@ -126,6 +124,16 @@ contract BullieverseAssets is ERC1155, ERC1155Supply, Ownable {
         uint256 maxPerWallet,
         uint256 openMintTimestamp
     ) external onlyOwner {
+        require(
+            collectionId != 0 &&
+                collectionToAsset[collectionId].collectionId == 0,
+            "Invalid collectionId"
+        );
+        require(
+            maxSupply >= maxPerWallet,
+            "maxSupply must be greater or equal to maxPerWallet"
+        );
+
         collectionToAsset[collectionId] = Asset(
             price,
             collectionId,
@@ -148,7 +156,8 @@ contract BullieverseAssets is ERC1155, ERC1155Supply, Ownable {
      */
     function withdraw() external onlyOwner {
         uint256 balance = address(this).balance;
-        payable(msg.sender).transfer(balance);
+        (bool success, ) = msg.sender.call{value: balance}("");
+        require(success, "Transfer failed.");
     }
 
     /**
@@ -215,7 +224,7 @@ contract BullieverseAssets is ERC1155, ERC1155Supply, Ownable {
             totalMintedAssets + amount <= pass.maxPerWallet,
             "Exceeding maximum per wallet"
         );
-        require(msg.value == pass.price * amount, "Not enough eth");
+        require(msg.value >= pass.price * amount, "Not enough eth");
 
         assetMintedPerCollectionId[msg.sender][collectionId] =
             totalMintedAssets +
@@ -234,19 +243,5 @@ contract BullieverseAssets is ERC1155, ERC1155Supply, Ownable {
         returns (uint256)
     {
         return assetMintedPerCollectionId[user][collectionId];
-    }
-
-    /**
-     * @dev Boilerplate override for `_beforeTokenTransfer`
-     */
-    function _beforeTokenTransfer(
-        address operator,
-        address from,
-        address to,
-        uint256[] memory ids,
-        uint256[] memory amounts,
-        bytes memory data
-    ) internal virtual override(ERC1155, ERC1155Supply) {
-        super._beforeTokenTransfer(operator, from, to, ids, amounts, data);
     }
 }
