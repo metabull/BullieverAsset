@@ -110,6 +110,7 @@ contract BullieverseAssets is ERC1155Supply, Ownable {
      * @dev Sets the base URI for the Collection metadata.
      */
     function setBaseURI(string memory baseURI) external onlyOwner {
+        require(bytes(baseURI).length != 0, "baseURI cannot be empty");
         _setURI(baseURI);
     }
 
@@ -156,6 +157,7 @@ contract BullieverseAssets is ERC1155Supply, Ownable {
      */
     function withdraw() external onlyOwner {
         uint256 balance = address(this).balance;
+        require(balance > 0, "Cannot WithDraw With Balance Zero");
         (bool success, ) = msg.sender.call{value: balance}("");
         require(success, "Transfer failed.");
     }
@@ -168,20 +170,25 @@ contract BullieverseAssets is ERC1155Supply, Ownable {
      * - There are enough Assets to mint for the given collection
      * - The supply for the given collection does not exceed the maxSupply of the Collection
      */
-    function reserveAssetesForGifting(
+    function reserveAssetsForGifting(
         uint256 collectionId,
         uint256 amountEachAddress,
         address[] calldata addresses
     ) public onlyOwner {
-        Asset memory pass = collectionToAsset[collectionId];
+        require(
+            collectionId != 0 &&
+                collectionToAsset[collectionId].collectionId != 0,
+            "Invalid collectionId"
+        );
+        Asset memory asset = collectionToAsset[collectionId];
         require(amountEachAddress > 0, "Amount cannot be 0");
         require(
-            totalSupply(collectionId) < pass.maxSupply,
-            "No passes to mint"
+            totalSupply(collectionId) < asset.maxSupply,
+            "No assets to mint"
         );
         require(
             totalSupply(collectionId) + amountEachAddress * addresses.length <=
-                pass.maxSupply,
+                asset.maxSupply,
             "Cannot mint that many"
         );
         require(addresses.length > 0, "Need addresses");
@@ -206,14 +213,19 @@ contract BullieverseAssets is ERC1155Supply, Ownable {
      */
     function mintAsset(uint256 collectionId, uint256 amount) external payable {
         require(saleIsActive, "Mint is not available right now");
-        Asset memory pass = collectionToAsset[collectionId];
         require(
-            block.timestamp >= pass.openMintTimestamp,
+            collectionId != 0 &&
+                collectionToAsset[collectionId].collectionId != 0,
+            "Invalid collectionId"
+        );
+        Asset memory asset = collectionToAsset[collectionId];
+        require(
+            block.timestamp >= asset.openMintTimestamp,
             "Mint is not available"
         );
-        require(totalSupply(collectionId) < pass.maxSupply, "Sold out");
+        require(totalSupply(collectionId) < asset.maxSupply, "Sold out");
         require(
-            totalSupply(collectionId) + amount <= pass.maxSupply,
+            totalSupply(collectionId) + amount <= asset.maxSupply,
             "Cannot mint that many"
         );
 
@@ -221,10 +233,10 @@ contract BullieverseAssets is ERC1155Supply, Ownable {
             collectionId
         ];
         require(
-            totalMintedAssets + amount <= pass.maxPerWallet,
+            totalMintedAssets + amount <= asset.maxPerWallet,
             "Exceeding maximum per wallet"
         );
-        require(msg.value >= pass.price * amount, "Not enough eth");
+        require(msg.value >= asset.price * amount, "Not enough eth");
 
         assetMintedPerCollectionId[msg.sender][collectionId] =
             totalMintedAssets +
